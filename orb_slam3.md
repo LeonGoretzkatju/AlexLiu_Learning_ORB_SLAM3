@@ -22,7 +22,7 @@
 
 ## 2.ORB_SLAM3的整体框架
 
-![image-20210205163837752](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205163837752.png)
+![image-20210205163837752](doc\image-20210205163837752.png)
 
 ### 1.Atlas
 
@@ -44,7 +44,7 @@ tracking部分与Atlas部分相配合，决定当前帧是否为关键帧，为A
 
 因为实验室目前是希望在相机-IMU情况下进行定位以及建立地图，我将系统的流程图总结如下
 
-![system](F:\计算机视觉与SLAM\system.png)
+![system](doc\system.png)
 
 ## 3.ORB_SLAM3特征点提取部分程序流程
 
@@ -59,11 +59,11 @@ tracking部分与Atlas部分相配合，决定当前帧是否为关键帧，为A
 
 ### 2.代码分析
 
-![image-20210205154446361](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205154446361.png)
+![image-20210205154446361](doc\image-20210205154446361.png)
 
 采用图像金字塔的原因是：相机在移动的场景中，与物体的距离时刻都在变化，因此是一个多尺度问题，图像金字塔是图像中多尺度表达方式的一种，是一种以多分辨率来解释图像的有效但概念简单的结构。利用图像金字塔结构，描述了多个距离下看同一图像的问题。举例来说，人眼可以很容易的在不同距离下看到并识别同个物体，但是计算机如何识别不同距离，我们需要一个办法帮机器在不同尺度下对同个物体有一样的认知能力。ORB_SLAM3中金字塔的层数为8
 
-![image-20210205160136218](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205160136218.png)
+![image-20210205160136218](doc\image-20210205160136218.png)
 
 计算图像金字塔部分对应于程序的ORBextractor::ComputePyramid部分，具体代码如下：
 
@@ -141,7 +141,7 @@ tracking部分与Atlas部分相配合，决定当前帧是否为关键帧，为A
 
 特征点的分配公式：
 
-![image-20210205163700144](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205163700144.png)
+![image-20210205163700144](doc\image-20210205163700144.png)
 
 图像金字塔对图像进行了缩放，假如要把该层的图像特征点移到其他层上，就要对应的放大图像，同时相机与图像的距离也要对应着进行缩放，保证其尺度不变性。
 
@@ -166,7 +166,7 @@ cv::Mat PC = Pos - Ow;
 如果node里面的点数>1，把每个node分成四个node，如果node里面的特征点为空，就不要了，删掉。
 新分的node的点数>1，就再分裂成4个node。如此，一直分裂。终止条件为：node的总数量> 规定的数量阈值 ，或者无法再进行分裂。然后从每个node里面选择一个质量最好的FAST点。
 
-![image-20210205171435483](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205171435483.png)
+![image-20210205171435483](doc\image-20210205171435483.png)
 
 提取出特征点后，需要计算描述子，而在计算之前需要进行高斯模糊，所谓”模糊”，可以理解成每一个像素都取周边像素的平均值。在数值上，这是一种”平滑化”。在图形上，就相当于产生”模糊”效果，”中间点”失去细节。
 
@@ -176,14 +176,14 @@ cv::Mat PC = Pos - Ow;
 
 图像的特征点可以简单的理解为图像中比较显著显著的点，如轮廓点，较暗区域中的亮点，较亮区域中的暗点等。ORB采用的是哪种描述子呢？是用FAST（features from accelerated segment test）FAST是一种角点，主要检测局部像素灰度变化明显的地方，以速度快著称。它的思想是：如果一个像素与邻域的像素差别较大（过亮或过暗），那么它更可能是角点。相比于其他角点检测算法，FAST只需比较像素亮度的大小，十分快捷。它的检测过程如下（如图）：其中采用了非极大抑制
 
-![image-20210205175339949](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205175339949.png)
+![image-20210205175339949](doc\image-20210205175339949.png)
 
 在得到特征点后，我们需要以某种方式描述这些特征点的属性。这些属性的输出我们称之为该特征点的描述子（Feature DescritorS）。ORB采用BRIEF算法来计算一个特征点的描述子。BRIEF算法的核心思想是在关键点P的周围以一定模式选取N个点对，把这N个点对的比较结果组合起来作为描述子。计算特征描述子的步骤分四步：
 
 1. 以关键点P为圆心，以d为半径做圆O
 2. 在圆O内某一模式选取N个点对。这里为方便说明，N=4，实际应用中N可以取512。
-3. 定义操作T![image-20210205180034333](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205180034333.png)
-4. 分别对已选取的点对进行T操作，将得到的结果进行组合。![image-20210205180108573](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205180108573.png)
+3. 定义操作T![image-20210205180034333](doc\image-20210205180034333.png)
+4. 分别对已选取的点对进行T操作，将得到的结果进行组合。![image-20210205180108573](doc\image-20210205180108573.png)
 
 ORB_SLAM3中的代码实现如下：
 
@@ -235,7 +235,7 @@ ORB在计算BRIEF描述子时建立的坐标系是以关键点为圆心，以关
 
 计算步骤如下：
 
-![image-20210205180924295](C:\Users\T430\AppData\Roaming\Typora\typora-user-images\image-20210205180924295.png)
+![image-20210205180924295](doc\image-20210205180924295.png)
 
 特征点畸变校正
 

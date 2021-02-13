@@ -1,3 +1,12 @@
+## ORB_SLAM3_LEARNING
+该项目是用于对ORB_SLAM3的学习，我会在不断学习的过程中记录下对于ORB_SLAM3的理解以及思考，同步更新orb_slam3.md and presentation.md
+
+该项目基于SLAM研习社（计算机视觉life 公众号旗下开源学习小组：SLAM研习社）对于ORB_SLAM3的详细注释，再次表示衷心的感谢
+
+
+
+
+
 # ORB-SLAM3 超详细注释
 
 
