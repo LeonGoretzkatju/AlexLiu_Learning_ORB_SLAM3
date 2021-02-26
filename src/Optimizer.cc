@@ -5934,9 +5934,9 @@ void Optimizer::InertialOptimization(vector<KeyFrame*> vpKFs, Eigen::Vector3d &b
 
 void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &scale)
 {
-    int its = 10;
+    int its = 10;//设置最大迭代次数
     long unsigned int maxKFid = pMap->GetMaxKFid();
-    const vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();
+    const vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();//从地图中获得所有的关键帧
 
     // Setup optimizer
     g2o::SparseOptimizer optimizer;
@@ -5949,23 +5949,23 @@ void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &sc
     g2o::OptimizationAlgorithmGaussNewton* solver = new g2o::OptimizationAlgorithmGaussNewton(solver_ptr);
     optimizer.setAlgorithm(solver);
 
-    // Set KeyFrame vertices (all variables are fixed)
+    // Set KeyFrame vertices (all variables are fixed)设置关键帧的节点，所有的变量保持固定
     for(size_t i=0; i<vpKFs.size(); i++)
     {
         KeyFrame* pKFi = vpKFs[i];
-        if(pKFi->mnId>maxKFid)
+        if(pKFi->mnId>maxKFid)//如果当前关键帧的ID大于所允许的最大ID，跳过这个关键帧
             continue;
-        VertexPose * VP = new VertexPose(pKFi);
+        VertexPose * VP = new VertexPose(pKFi);//关键帧的位姿设置为节点
         VP->setId(pKFi->mnId);
         VP->setFixed(true);
         optimizer.addVertex(VP);
 
-        VertexVelocity* VV = new VertexVelocity(pKFi);
+        VertexVelocity* VV = new VertexVelocity(pKFi);//关键帧的速度设置为节点
         VV->setId(maxKFid+1+(pKFi->mnId));
-        VV->setFixed(true);
+        VV->setFixed(true);//设置速度节点固定
         optimizer.addVertex(VV);
 
-        // Vertex of fixed biases
+        // Vertex of fixed biases 将陀螺仪以及加速度的偏差设置为固定的，并添加到因子图当中
         VertexGyroBias* VG = new VertexGyroBias(vpKFs.front());
         VG->setId(2*(maxKFid+1)+(pKFi->mnId));
         VG->setFixed(true);
@@ -5976,7 +5976,7 @@ void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &sc
         optimizer.addVertex(VA);
     }
 
-    // Gravity and scale
+    // Gravity and scale 因为重力方向矩阵以及尺度因子是待优化的变量，所以不固定
     VertexGDir* VGDir = new VertexGDir(Rwg);
     VGDir->setId(4*(maxKFid+1));
     VGDir->setFixed(false);
@@ -5990,12 +5990,12 @@ void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &sc
     for(size_t i=0;i<vpKFs.size();i++)
     {
         KeyFrame* pKFi = vpKFs[i];
-
+        //对每个关键帧，判断其是否有前一关键帧数据，是否超出检索范围
         if(pKFi->mPrevKF && pKFi->mnId<=maxKFid)
         {
             if(pKFi->isBad() || pKFi->mPrevKF->mnId>maxKFid)
                 continue;
-
+            //将优化器中之前加入的节点作为hypergraph中的顶点，根据ID进行选择添加
             g2o::HyperGraph::Vertex* VP1 = optimizer.vertex(pKFi->mPrevKF->mnId);
             g2o::HyperGraph::Vertex* VV1 = optimizer.vertex((maxKFid+1)+pKFi->mPrevKF->mnId);
             g2o::HyperGraph::Vertex* VP2 =  optimizer.vertex(pKFi->mnId);
@@ -6010,7 +6010,7 @@ void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &sc
 
                 continue;
             }
-            EdgeInertialGS* ei = new EdgeInertialGS(pKFi->mpImuPreintegrated);
+            EdgeInertialGS* ei = new EdgeInertialGS(pKFi->mpImuPreintegrated);//预积分结果作为多向边将各个顶点连接起来
             ei->setVertex(0,dynamic_cast<g2o::OptimizableGraph::Vertex*>(VP1));
             ei->setVertex(1,dynamic_cast<g2o::OptimizableGraph::Vertex*>(VV1));
             ei->setVertex(2,dynamic_cast<g2o::OptimizableGraph::Vertex*>(VG));
@@ -6020,7 +6020,7 @@ void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &sc
             ei->setVertex(6,dynamic_cast<g2o::OptimizableGraph::Vertex*>(VGDir));
             ei->setVertex(7,dynamic_cast<g2o::OptimizableGraph::Vertex*>(VS));
 
-            optimizer.addEdge(ei);
+            optimizer.addEdge(ei);//将预积分连接起来的边加入优化器
         }
     }
 
@@ -6029,7 +6029,7 @@ void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &sc
     optimizer.initializeOptimization();
     optimizer.optimize(its);
 
-    // Recover optimized data
+    // Recover optimized data 更新待估计的尺度因子以及重力方向
     scale = VS->estimate();
     Rwg = VGDir->estimate().Rwg;
 }

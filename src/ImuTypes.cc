@@ -237,7 +237,7 @@ void Preintegrated::CopyFrom(Preintegrated* pImuPre)
 
 
 void Preintegrated::Initialize(const Bias &b_)
-{
+{//初始化相应的变量 包括重力方向 速度 角速度 位置等
     dR = cv::Mat::eye(3,3,CV_32F);
     dV = cv::Mat::zeros(3,1,CV_32F);
     dP = cv::Mat::zeros(3,1,CV_32F);
@@ -247,7 +247,7 @@ void Preintegrated::Initialize(const Bias &b_)
     JPg = cv::Mat::zeros(3,3,CV_32F);
     JPa = cv::Mat::zeros(3,3,CV_32F);
     C = cv::Mat::zeros(15,15,CV_32F);
-    Info=cv::Mat();
+    Info=cv::Mat();//information matrix
     db = cv::Mat::zeros(6,1,CV_32F);
     b=b_;
     bu=b_;

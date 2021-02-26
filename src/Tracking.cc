@@ -1135,15 +1135,15 @@ void Tracking::PreintegrateIMU()
     if(!mCurrentFrame.mpPrevFrame)
     {
         Verbose::PrintMess("non prev frame ", Verbose::VERBOSITY_NORMAL);
-        // ? 当前帧是否进行预积分标志
+        //设置当前帧是否进行预积分标志为true
         mCurrentFrame.setIntegrated();
         return;
     }
 
     // cout << "start loop. Total meas:" << mlQueueImuData.size() << endl;
 
-    mvImuFromLastFrame.clear();
-    mvImuFromLastFrame.reserve(mlQueueImuData.size());
+    mvImuFromLastFrame.clear();//清空上一帧到当前帧的IMU测量值
+    mvImuFromLastFrame.reserve(mlQueueImuData.size());//根据之前读取的IMU数据的长度重置mvImuFromLastFrame大小
     // 没有imu数据,不进行预积分
     if(mlQueueImuData.size() == 0)
     {
@@ -1210,13 +1210,14 @@ void Tracking::PreintegrateIMU()
     {
         float tstep;
         cv::Point3f acc, angVel;
-        // 第一帧数据但不是最后两帧,imu总帧数大于2
+        // 第一个IMU数据但不是最后一个，IMU测量数据总数大于。
         if((i==0) && (i<(n-1)))
         {
             // 时间差作为积分量
             float tab = mvImuFromLastFrame[i+1].t-mvImuFromLastFrame[i].t;
             // 根据上面分析的IMU与图像帧的时序分析，获取当前imu到上一帧的时间间隔
             // 在加加速度不变的假设上算出第一帧图像到第二个imu数据的中值积分
+            // 因为是首帧图像与IMU数据并没有对齐，所以需要进行线性插值计算。
             float tini = mvImuFromLastFrame[i].t-mCurrentFrame.mpPrevFrame->mTimeStamp;
             // ? 这里采用离散中值积分进行预积分,获取当前imu到上一帧的时间间隔
             // 设当前时刻imu的加速度a0，下一时刻加速度a1，时间间隔tab 为t10，tini t0p
@@ -1224,7 +1225,7 @@ void Tracking::PreintegrateIMU()
             // 有了这个改变量将其加到a0上之后就可以表示上一帧时的加速度了。其中a0 - (a1-a0)*(tini/tab) 为上一帧时刻的加速度再加上a1 之后除以2就为这段时间的加速度平均值
             // 其中tstep表示a1到上一帧的时间间隔，a0 - (a1-a0)*(tini/tab)这个式子中tini可以是正也可以是负表示时间上的先后，(a1-a0)也是一样，多种情况下这个式子依然成立
             acc = (mvImuFromLastFrame[i].a+mvImuFromLastFrame[i+1].a-
-                    (mvImuFromLastFrame[i+1].a-mvImuFromLastFrame[i].a)*(tini/tab))*0.5f;
+                    (mvImuFromLastFrame[i+1].a-mvImuFromLastFrame[i].a)*(tini/tab))*0.5f;//计算两IMU数据帧之间的中值积分
             angVel = (mvImuFromLastFrame[i].w+mvImuFromLastFrame[i+1].w-
                     (mvImuFromLastFrame[i+1].w-mvImuFromLastFrame[i].w)*(tini/tab))*0.5f;
             // 上一帧图像到下一帧imu（也就是第二个imu数据）的时间差
@@ -1257,7 +1258,7 @@ void Tracking::PreintegrateIMU()
             angVel = mvImuFromLastFrame[i].w;
             tstep = mCurrentFrame.mTimeStamp-mCurrentFrame.mpPrevFrame->mTimeStamp;
         }
-        // Step 3.依次进行预积分计算
+        // Step 3.对两帧之间的IMU数据依次进行预积分计算
         // 应该是必存在的吧，一个是相对上一关键帧，一个是相对上一帧
         if (!mpImuPreintegratedFromLastKF)
             cout << "mpImuPreintegratedFromLastKF does not exist" << endl;
@@ -1518,7 +1519,7 @@ void Tracking::Track()
                 if(mpAtlas->isImuInitialized())
                 {
                     cout << "Timestamp jump detected. State set to LOST. Reseting IMU integration..." << endl;
-                    // ? BA2标志代表什么?,BA优化成功?
+                    //第二次BA优化成功
                     if(!pCurrentMap->GetIniertialBA2())
                     {
                         // 如果当前子图中imu没有经过BA2，重置active地图
@@ -1553,7 +1554,7 @@ void Tracking::Track()
     }
 
     mLastProcessedState=mState;
-    // Step 4 IMU模式下对IMU数据进行预积分 -> // ? 没有创建地图的情况下
+    // Step 4 IMU模式下对IMU数据进行预积分 -> //没有创建地图的情况下
     if ((mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO) && !mbCreatedMap)
     {
 #ifdef SAVE_TIMES
@@ -2266,7 +2267,7 @@ void Tracking::MonocularInitialization()
     if(!mpInitializer)
     {
         // Set Reference Frame
-        if(mCurrentFrame.mvKeys.size()>100)
+        if(mCurrentFrame.mvKeys.size()>100)//确保当前帧的特征点数量足够用于初始化
         {
 
             mInitialFrame = Frame(mCurrentFrame);
@@ -2616,7 +2617,7 @@ void Tracking::UpdateLastFrame()
 {
     // Update pose according to reference keyframe
     KeyFrame* pRef = mLastFrame.mpReferenceKF;
-    cv::Mat Tlr = mlRelativeFramePoses.back();
+    cv::Mat Tlr = mlRelativeFramePoses.back();//返回最近一个相关帧的位姿
     mLastFrame.SetPose(Tlr*pRef->GetPose());
 
     if(mnLastKeyFrameId==mLastFrame.mnId || mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR || !mbOnlyTracking)
@@ -2625,7 +2626,7 @@ void Tracking::UpdateLastFrame()
     // Create "visual odometry" MapPoints
     // We sort points according to their measured depth by the stereo/RGB-D sensor
     vector<pair<float,int> > vDepthIdx;
-    vDepthIdx.reserve(mLastFrame.N);
+    vDepthIdx.reserve(mLastFrame.N);//根据上一帧关键点的数量重置深度vector的大小
     for(int i=0; i<mLastFrame.N;i++)
     {
         float z = mLastFrame.mvDepth[i];
@@ -2638,7 +2639,7 @@ void Tracking::UpdateLastFrame()
     if(vDepthIdx.empty())
         return;
 
-    sort(vDepthIdx.begin(),vDepthIdx.end());
+    sort(vDepthIdx.begin(),vDepthIdx.end());//根据深度进行排序
 
     // We insert all close points (depth<mThDepth)
     // If less than 100 close points, we insert the 100 closest ones.
@@ -2660,7 +2661,7 @@ void Tracking::UpdateLastFrame()
         if(bCreateNew)
         {
             cv::Mat x3D = mLastFrame.UnprojectStereo(i);
-            MapPoint* pNewMP = new MapPoint(x3D,mpAtlas->GetCurrentMap(),&mLastFrame,i);
+            MapPoint* pNewMP = new MapPoint(x3D,mpAtlas->GetCurrentMap(),&mLastFrame,i);//在当前地图中创建新的地图点
 
             mLastFrame.mvpMapPoints[i]=pNewMP;
 
@@ -2685,22 +2686,22 @@ bool Tracking::TrackWithMotionModel()
 
     // Update last frame pose according to its reference keyframe
     // Create "visual odometry" points if in Localization Mode
-    UpdateLastFrame();
+    UpdateLastFrame();//根据参考帧去更新上一帧的位姿
 
 
 
     if (mpAtlas->isImuInitialized() && (mCurrentFrame.mnId>mnLastRelocFrameId+mnFramesToResetIMU))
     {
         // Predict ste with IMU if it is initialized and it doesnt need reset
-        PredictStateIMU();
+        PredictStateIMU();//根据上一帧的位姿以及上一帧和当前帧之间的预积分值计算出当前帧的世界坐标系姿态
         return true;
     }
     else
     {
-        mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
+        mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);// 默认两帧之间的速度恒定
     }
 
-
+    // 当前帧中的每个地图点都被置空
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
 
     // Project points seen in previous frame

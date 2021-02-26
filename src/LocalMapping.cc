@@ -179,7 +179,7 @@ void LocalMapping::Run()
                     {
                         // Step 6.2 不是IMU模式或者当前关键帧所在的地图还未完成IMU初始化
                         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-                        // 局部地图BA，不包括IMU数据
+                        // 局部地图BA，不包括IMU数据 纯视觉优化
 						// 注意这里的第二个参数是按地址传递的,当这里的 mbAbortBA 状态发生变化时，能够及时执行/停止BA
                         Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpCurrentKeyFrame->GetMap(),num_FixedKF_BA);
                         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -217,7 +217,7 @@ void LocalMapping::Run()
                             // 如果累计时间差大于5s，开始VIBA 1
                             if (mTinit>5.0f)
                             {
-                                cout << "start VIBA 1" << endl;
+                                cout << "start VIBA 1" << endl;//这部分视觉惯导的BA实际为再一次初始IMU，InitializeIMU
                                 mpCurrentKeyFrame->GetMap()->SetIniertialBA1();
                                 if (mbMonocular)
                                     InitializeIMU(1.f, 1e5, true); // 1.f, 1e5
@@ -1661,7 +1661,7 @@ void LocalMapping::ScaleRefinement()
 
     mRwg = Eigen::Matrix3d::Identity();
     mScale=1.0;
-
+    //这里只优化了重力方向以及尺度
     std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
     Optimizer::InertialOptimization(mpAtlas->GetCurrentMap(), mRwg, mScale);
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
@@ -1679,8 +1679,8 @@ void LocalMapping::ScaleRefinement()
     if ((fabs(mScale-1.f)>0.00001)||!mbMonocular)
     {
         //restore the scale and align the inertial frame and world frame
-        mpAtlas->GetCurrentMap()->ApplyScaledRotation(Converter::toCvMat(mRwg).t(),mScale,true);
-        mpTracker->UpdateFrameIMU(mScale,mpCurrentKeyFrame->GetImuBias(),mpCurrentKeyFrame);
+        mpAtlas->GetCurrentMap()->ApplyScaledRotation(Converter::toCvMat(mRwg).t(),mScale,true);//恢复尺度
+        mpTracker->UpdateFrameIMU(mScale,mpCurrentKeyFrame->GetImuBias(),mpCurrentKeyFrame);//对齐IMU系和惯性系
     }
     std::chrono::steady_clock::time_point t3 = std::chrono::steady_clock::now();
 

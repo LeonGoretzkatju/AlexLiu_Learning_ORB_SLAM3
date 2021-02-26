@@ -1,3 +1,7 @@
+---
+typora-root-url: doc
+---
+
 # 2021.02.09
 
 ## 1.ORB_SLAM3与VINS_MONO的VIO部分比较
@@ -75,3 +79,39 @@ ORB_SLAM3:
 未完待续......
 
 未来可期！！！
+
+## LocalMapping线程分析
+
+![](/localmapping.png)
+
+IMU除了应用在LocalMapping中的IMU initialization以及visual-inertial BA用作联合优化，还应用在tracking以及mapping部分。
+
+1. 在tracking中解决的相当于简化的视觉-惯导优化问题，只有上两帧的状态被优化，与此同时地图点保持固定，在mapping部分，试图解决论文中的公式（4）是代价高昂的，因此作者采用了滑动窗口关键帧以及特征点作为优化变量，包括共视帧但是保持不变，也就是相比于原来的公式，滑动窗口相当于减少了优化的变量的集合，提高运算速度。
+
+2. 在localmapping中，如果慢速运动无法提供对IMU参数的充分观测的话，初始化在最初的15秒内并不能收敛到准确解，在这里作者提出了新颖的尺度优化方案，参见作者paper中的tracking and mapping部分，该部分基于改进后的inertial-only optimization，只估计所有关键帧中的尺度以及重力的方向，该部分优化每10秒在localmapping线程中运行一次，对应代码如下
+
+   ```c++
+   // scale refinement
+   // Step 9.3 尺度优化
+   if (((mpAtlas->KeyFramesInMap())<=100) &&
+       ((mTinit>25.0f && mTinit<25.5f)||
+        (mTinit>35.0f && mTinit<35.5f)||
+        (mTinit>45.0f && mTinit<45.5f)||
+        (mTinit>55.0f && mTinit<55.5f)||
+        (mTinit>65.0f && mTinit<65.5f)||
+        (mTinit>75.0f && mTinit<75.5f))){
+       cout << "start scale ref" << endl;
+       if (mbMonocular)
+           ScaleRefinement();
+       cout << "end scale ref" << endl;
+   }
+   ```
+
+   这里对应的inertial-optimization为论文中figure2d对应的因子图，代码为
+
+   ```c++
+   void Optimizer::InertialOptimization(Map *pMap, Eigen::Matrix3d &Rwg, double &scale)
+   ```
+
+   
+
